@@ -1,0 +1,19 @@
+{
+  "name": "secure-prompt",
+  "version": "0.0.0",
+  "description": "Securely prompt stdio using secure buffers",
+  "main": "index.js",
+  "dependencies": {
+    "sodium-native": "^4.0.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/holepunchto/secure-prompt.git"
+  },
+  "author": "Holepunch Inc",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/holepunchto/secure-prompt/issues"
+  },
+  "homepage": "https://github.com/holepunchto/secure-prompt"
+}
