@@ -1,5 +1,5 @@
 const net = require('net')
-const { TTY } = process.binding('tty_wrap')
+const { TTY, isTTY } = process.binding('tty_wrap')
 const sodium = require('sodium-native')
 
 let doPrompt = null
@@ -14,6 +14,7 @@ function init () {
   const ctx = {}
   const tty = new TTY(fd, ctx)
   const tmp = sodium.sodium_malloc(4096)
+  const useRaw = isTTY(fd)
 
   let end = 0
   let nextResolve = null
@@ -29,8 +30,9 @@ function init () {
       buffer: tmp,
       callback (nread, buf) {
         sodium.sodium_mprotect_readwrite(userBuffer)
-        let eof = false
-        let eol = false
+
+        let eof = !useRaw
+        let eol = !useRaw
 
         for (let i = 0; i < nread; i++) {
           const b = buf[i]
@@ -62,32 +64,41 @@ function init () {
   return doPrompt
 
   function doPrompt () {
-    userBuffer = sodium.sodium_malloc(4096)
-    sodium.sodium_mprotect_readwrite(tmp)
-    tty.setRawMode(true)
-    sock.resume()
+    if (userBuffer) throw new Error('Only one prompt can be active')
+
     return new Promise((resolve, reject) => {
-      end = 0
       nextResolve = resolve
       nextReject = reject
+      userBuffer = sodium.sodium_malloc(4096)
+      end = 0
+      sodium.sodium_mprotect_readwrite(tmp)
+      if (useRaw) tty.setRawMode(true)
+      sock.resume()
     })
   }
 
   function done (success) {
     sodium.sodium_mprotect_noaccess(tmp)
 
-    if (!success) sodium.sodium_free(userBuffer)
-    else sodium.sodium_mprotect_noaccess(userBuffer)
+    if (!success) {
+      sodium.sodium_mprotect_readwrite(userBuffer)
+      sodium.sodium_free(userBuffer)
+    }
 
     const result = success ? userBuffer.subarray(0, end) : null
+
     end = 0
     userBuffer = null
 
-    tty.setRawMode(false)
     sock.pause()
+    if (useRaw) tty.setRawMode(false)
 
-    if (result) nextResolve(result)
-    else nextReject(new Error('Prompt cancelled'))
+    if (result) {
+      sodium.sodium_mprotect_noaccess(result)
+      nextResolve(result)
+    } else {
+      nextReject(new Error('Prompt cancelled'))
+    }
 
     nextResolve = null
     nextReject = null
