@@ -1,6 +1,6 @@
 {
   "name": "secure-prompt",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Securely prompt stdio using secure buffers",
   "main": "index.js",
   "dependencies": {
