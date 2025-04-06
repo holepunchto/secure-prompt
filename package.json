@@ -4,7 +4,7 @@
   "description": "Securely prompt stdio using secure buffers",
   "main": "index.js",
   "dependencies": {
-    "sodium-native": "^4.0.8"
+    "sodium-native": "^5.0.1"
   },
   "repository": {
     "type": "git",
