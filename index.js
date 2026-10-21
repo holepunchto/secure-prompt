@@ -84,13 +84,10 @@ function init () {
     let result = null
     let error = null
 
-    if (end === 0) {
-      throw new Error('No input')
-    }
-
     sodium.sodium_mprotect_readwrite(userBuffer)
     try {
       if (success) {
+        if (end === 0) throw new Error('No input')
         result = sodium.sodium_malloc(end)
         result.set(userBuffer.subarray(0, end))
         sodium.sodium_mprotect_noaccess(result)
