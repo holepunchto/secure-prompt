@@ -18,6 +18,7 @@ function init () {
 
   let end = 0
   let ended = false
+  let esc = 0 // 1 after ESC, 2 inside CSI (ESC [), 3 inside SS3 (ESC O)
   let nextResolve = null
   let nextReject = null
   let userBuffer = null
@@ -38,8 +39,32 @@ function init () {
         try {
           for (let i = 0; i < nread; i++) {
             const b = buf[i]
-            if (b === 127) {
-              end = Math.max(0, end - 1)
+
+            if (esc === 1) {
+              esc = b === 0x5b ? 2 : b === 0x4f ? 3 : 0
+              continue
+            }
+
+            if (esc === 2) {
+              if (b >= 0x40 && b <= 0x7e) esc = 0
+              continue
+            }
+
+            if (esc === 3) {
+              esc = 0
+              continue
+            }
+
+            if (b === 27) {
+              esc = 1
+              continue
+            }
+
+            if (b === 127 || b === 8) {
+              // drop a whole utf-8 char: continuation bytes, then the lead byte
+              while (end > 0) {
+                if ((userBuffer[--end] & 0xc0) !== 0x80) break
+              }
               continue
             }
 
@@ -53,10 +78,15 @@ function init () {
               continue
             }
 
-            eol = (b === 13 || b === 10)
-            eof = true
-            break
+            if (b === 13 || b === 10 || b === 3 || b === 4) {
+              eol = (b === 13 || b === 10)
+              eof = true
+              break
+            }
           }
+
+          // a lone ESC keypress arrives in a read of its own
+          if (esc === 1) esc = 0
         } finally {
           sodium.sodium_mprotect_noaccess(userBuffer)
           sodium.sodium_memzero(buf.subarray(0, nread))
@@ -86,6 +116,7 @@ function init () {
       nextReject = reject
       userBuffer = sodium.sodium_malloc(4096)
       end = 0
+      esc = 0
       sodium.sodium_mprotect_readwrite(tmp)
       if (useRaw) tty.setRawMode(true)
       sock.resume()
