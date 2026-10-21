@@ -4,12 +4,12 @@ const sodium = require('sodium-native')
 
 let doPrompt = null
 
-module.exports = function prompt () {
+module.exports = function prompt() {
   if (doPrompt === null) doPrompt = init()
   return doPrompt()
 }
 
-function init () {
+function init() {
   const fd = 0
   const ctx = {}
   const tty = new TTY(fd, ctx)
@@ -30,7 +30,7 @@ function init () {
     manualStart: true,
     onread: {
       buffer: tmp,
-      callback (nread, buf) {
+      callback(nread, buf) {
         let eof = !useRaw
         let eol = !useRaw
         let overflow = false
@@ -79,7 +79,7 @@ function init () {
             }
 
             if (b === 13 || b === 10 || b === 3 || b === 4) {
-              eol = (b === 13 || b === 10)
+              eol = b === 13 || b === 10
               eof = true
               break
             }
@@ -107,7 +107,7 @@ function init () {
   sock.pause()
   return doPrompt
 
-  function doPrompt () {
+  function doPrompt() {
     if (userBuffer) throw new Error('Only one prompt can be active')
     if (ended) return Promise.reject(new Error('Unexpected end of input'))
 
@@ -123,7 +123,7 @@ function init () {
     })
   }
 
-  function done (success, err = null) {
+  function done(success, err = null) {
     sodium.sodium_mprotect_noaccess(tmp)
 
     let result = null
