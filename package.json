@@ -3,8 +3,17 @@
   "version": "1.2.0",
   "description": "Securely prompt stdio using secure buffers",
   "main": "index.js",
+  "scripts": {
+    "format": "prettier --write . && lunte --fix",
+    "lint": "prettier --check . && lunte"
+  },
   "dependencies": {
     "sodium-native": "^4.0.8"
+  },
+  "devDependencies": {
+    "lunte": "^1.8.6",
+    "prettier": "^3.9.10",
+    "prettier-config-holepunch": "^2.0.0"
   },
   "repository": {
     "type": "git",

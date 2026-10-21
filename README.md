@@ -8,7 +8,7 @@ npm install secure-prompt
 
 ## Usage
 
-``` js
+```js
 const prompt = require('secure-prompt')
 const buffer = await prompt() // user input in buffer
 
