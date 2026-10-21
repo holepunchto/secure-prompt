@@ -8,7 +8,7 @@
     "lint": "prettier --check . && lunte"
   },
   "dependencies": {
-    "sodium-native": "^4.0.8"
+    "sodium-native": "^5.0.1"
   },
   "devDependencies": {
     "lunte": "^1.8.6",
