@@ -17,6 +17,7 @@ function init () {
   const useRaw = isTTY(fd)
 
   let end = 0
+  let ended = false
   let nextResolve = null
   let nextReject = null
   let userBuffer = null
@@ -31,6 +32,7 @@ function init () {
       callback (nread, buf) {
         let eof = !useRaw
         let eol = !useRaw
+        let overflow = false
 
         sodium.sodium_mprotect_readwrite(userBuffer)
         try {
@@ -42,7 +44,12 @@ function init () {
             }
 
             if (b >= 32) {
-              if (end < userBuffer.byteLength) userBuffer[end++] = b
+              if (end === userBuffer.byteLength) {
+                overflow = true
+                eof = true
+                break
+              }
+              userBuffer[end++] = b
               continue
             }
 
@@ -55,10 +62,16 @@ function init () {
           sodium.sodium_memzero(buf.subarray(0, nread))
         }
 
-        if (eof) done(eol)
+        if (overflow) done(false, new Error('Input too long'))
+        else if (eof) done(eol)
         return !eof
       }
     }
+  })
+
+  sock.on('end', function () {
+    ended = true
+    if (userBuffer) done(false, new Error('Unexpected end of input'))
   })
 
   sock.pause()
@@ -66,6 +79,7 @@ function init () {
 
   function doPrompt () {
     if (userBuffer) throw new Error('Only one prompt can be active')
+    if (ended) return Promise.reject(new Error('Unexpected end of input'))
 
     return new Promise((resolve, reject) => {
       nextResolve = resolve
@@ -78,11 +92,11 @@ function init () {
     })
   }
 
-  function done (success) {
+  function done (success, err = null) {
     sodium.sodium_mprotect_noaccess(tmp)
 
     let result = null
-    let error = null
+    let error = err
 
     sodium.sodium_mprotect_readwrite(userBuffer)
     try {
