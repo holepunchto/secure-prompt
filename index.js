@@ -29,30 +29,31 @@ function init () {
     onread: {
       buffer: tmp,
       callback (nread, buf) {
-        sodium.sodium_mprotect_readwrite(userBuffer)
-
         let eof = !useRaw
         let eol = !useRaw
 
-        for (let i = 0; i < nread; i++) {
-          const b = buf[i]
-          if (b === 127) {
-            end = Math.max(0, end - 1)
-            continue
-          }
+        sodium.sodium_mprotect_readwrite(userBuffer)
+        try {
+          for (let i = 0; i < nread; i++) {
+            const b = buf[i]
+            if (b === 127) {
+              end = Math.max(0, end - 1)
+              continue
+            }
 
-          if (b >= 32) {
-            userBuffer[end++] = b
-            continue
-          }
+            if (b >= 32) {
+              if (end < userBuffer.byteLength) userBuffer[end++] = b
+              continue
+            }
 
-          eol = (b === 13 || b === 10)
-          eof = true
-          break
+            eol = (b === 13 || b === 10)
+            eof = true
+            break
+          }
+        } finally {
+          sodium.sodium_mprotect_noaccess(userBuffer)
+          sodium.sodium_memzero(buf.subarray(0, nread))
         }
-
-        sodium.sodium_mprotect_noaccess(userBuffer)
-        sodium.sodium_memzero(buf.subarray(0, nread))
 
         if (eof) done(eol)
         return !eof
@@ -80,25 +81,35 @@ function init () {
   function done (success) {
     sodium.sodium_mprotect_noaccess(tmp)
 
-    if (!success) {
-      sodium.sodium_mprotect_readwrite(userBuffer)
-      sodium.sodium_free(userBuffer)
+    let result = null
+    let error = null
+
+    if (end === 0) {
+      throw new Error('No input')
     }
 
-    const result = success ? userBuffer.subarray(0, end) : null
-
-    end = 0
-    userBuffer = null
+    sodium.sodium_mprotect_readwrite(userBuffer)
+    try {
+      if (success) {
+        result = sodium.sodium_malloc(end)
+        result.set(userBuffer.subarray(0, end))
+        sodium.sodium_mprotect_noaccess(result)
+      }
+    } catch (err) {
+      if (result !== null) sodium.sodium_free(result)
+      error = err
+      result = null
+    } finally {
+      sodium.sodium_free(userBuffer)
+      end = 0
+      userBuffer = null
+    }
 
     sock.pause()
     if (useRaw) tty.setRawMode(false)
 
-    if (result) {
-      sodium.sodium_mprotect_noaccess(result)
-      nextResolve(result)
-    } else {
-      nextReject(new Error('Prompt cancelled'))
-    }
+    if (result) nextResolve(result)
+    else nextReject(error || new Error('Prompt cancelled'))
 
     nextResolve = null
     nextReject = null
